@@ -5,9 +5,9 @@ function errorNotifier(err) {
   if (err) console.log(err);
 }
 
-async function bundleStyle(from, to) {
+function bundleStyle(from, to) {
   const stream = fs.createWriteStream(`${to}/bundle.css`);
-  await fs.readdir(from, (err, files) => {
+  fs.readdir(from, (err, files) => {
     errorNotifier(err);
     files.forEach((file) => {
       if (path.extname(file) === '.css') {
