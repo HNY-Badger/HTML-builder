@@ -1,10 +1,10 @@
 const fs = require('node:fs');
+const fsPromises = require("fs/promises");
 const path = require('node:path');
 const dirPath = './06-build-page';
 
 function errNotify(err) {
-  // Turned off to keep console clean
-  // if (err) console.log(err);
+  if (err && err.code !== "EEXIST") console.log(err);
 }
 
 function bundleStyle(from, to) {
@@ -23,40 +23,35 @@ function bundleStyle(from, to) {
 }
 
 function copyDir(from, to) {
-  fs.mkdir(to, errNotify);
-  fs.readdir(from, (err, files) => {
+  fs.rm(to, { recursive: true, force: true }, (err) => {
     errNotify(err);
-    files.forEach((file) => {
-      fs.stat(`${from}/${file}`, (err, stats) => {
-        errNotify(err);
-        if (stats.isFile()) {
-          fs.copyFile(`${from}/${file}`, `${to}/${file}`, errNotify);
-        } else if (stats.isDirectory()) {
-          copyDir(`${from}/${file}`, `${to}/${file}`);
-        }
+    fs.mkdir(to, errNotify);
+    fs.readdir(from, (err, files) => {
+      errNotify(err);
+      files.forEach((file) => {
+        fs.stat(`${from}/${file}`, (err, stats) => {
+          errNotify(err);
+          if (stats.isFile()) {
+            fs.copyFile(`${from}/${file}`, `${to}/${file}`, errNotify);
+          } else if (stats.isDirectory()) {
+            copyDir(`${from}/${file}`, `${to}/${file}`);
+          }
+        });
       });
     });
   });
 }
 
-function componentsSetup(callback) {
+async function componentsSetup(callback) {
   const components = {};
-  fs.readdir(`${dirPath}/components`, (err, files) => {
-    errNotify(err);
-    let counter = files.length;
-    files.forEach((file) => {
-      counter--;
-      if (path.extname(file) === '.html') {
-        fs.readFile(`${dirPath}/components/${file}`, (err, data) => {
-          errNotify(err);
-          components[`{{${path.basename(file, '.html')}}}`] = data.toString();
-        });
-      }
-      if (counter === 0) {
-        callback(components);
-      }
-    });
-  });
+  const files = await fsPromises.readdir(`${dirPath}/components`);
+  for (const file of files) {
+    if (path.extname(file) === '.html') {
+      const data = await fsPromises.readFile(`${dirPath}/components/${file}`);
+      components[`{{${path.basename(file, '.html')}}}`] = data.toString();
+    }
+  }
+  callback(components);
 }
 
 function buildHTML(dest) {
